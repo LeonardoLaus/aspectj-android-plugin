@@ -1,4 +1,5 @@
 apply plugin: 'groovy'
+apply plugin: 'maven'
 
 repositories {
     google()
@@ -20,3 +21,12 @@ dependencies {
     implementation 'org.aspectj:aspectjtools:1.8.10'
 }
 
+group = 'leon.android.plugins'
+version = '1.0.0'
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            repository(url: uri('E:/liuhao/Android/repos'))
+        }
+    }
+}
