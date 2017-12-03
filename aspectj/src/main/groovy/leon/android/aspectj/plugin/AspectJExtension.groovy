@@ -1,19 +1,19 @@
 package leon.android.aspectj.plugin
 
 class AspectJExtension {
-    def includeJar = []
-    def excludeJar = []
+    def includeJars = []
+    def excludeJars = []
     def ajcArgs = []
 
-    void includeJar(String... jars) {
+    void includeJars(String... jars) {
         if (jars != null) {
-            includeJar.addAll(jars)
+            includeJars.addAll(jars)
         }
     }
 
-    void excludeJar(String... jars) {
+    void excludeJars(String... jars) {
         if (jars != null) {
-            excludeJar.addAll(jars)
+            excludeJars.addAll(jars)
         }
     }
 

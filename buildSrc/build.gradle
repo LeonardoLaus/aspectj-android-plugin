@@ -1,8 +1,0 @@
-repositories {
-    google()
-    jcenter()
-}
-
-dependencies {
-    runtime project(':aspectj')
-}

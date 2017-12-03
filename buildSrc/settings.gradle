@@ -1,2 +1,0 @@
-include ':aspectj'
-project(':aspectj').projectDir = new File('../aspectj')
