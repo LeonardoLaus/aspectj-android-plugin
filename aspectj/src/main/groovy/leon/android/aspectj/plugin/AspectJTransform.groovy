@@ -51,15 +51,16 @@ class AspectJTransform extends Transform {
     Set<? super QualifiedContent.Scope> getScopes() {
         def name = QualifiedContent.Scope.PROJECT_LOCAL_DEPS.name()
         def deprecated = QualifiedContent.Scope.class.getField(name).isAnnotationPresent(Deprecated.class)
-        println("PROJECT_LOCAL_DEPS is deprecated?(${deprecated})")
         if (deprecated) {
+            println('getScopes >>> TransformManager.SCOPE_FULL_PROJECT')
             return TransformManager.SCOPE_FULL_PROJECT
         } else {
-            return ImmutableSet.<QualifiedContent.Scope> of(QualifiedContent.Scope.PROJECT
-                    , QualifiedContent.Scope.PROJECT_LOCAL_DEPS
-                    , QualifiedContent.Scope.EXTERNAL_LIBRARIES
-                    , QualifiedContent.Scope.SUB_PROJECTS
-                    , QualifiedContent.Scope.SUB_PROJECTS_LOCAL_DEPS)
+            println('getScopes >>> TransformManager.SCOPE_FULL_PROJECT append PROJECT_LOCAL_DEPES SUB_PROJECTS_LOCAL_DEPS')
+            return ImmutableSet.builder()
+                    .addAll(TransformManager.SCOPE_FULL_PROJECT)
+                    .add(QualifiedContent.Scope.PROJECT_LOCAL_DEPS)
+                    .add(QualifiedContent.Scope.SUB_PROJECTS_LOCAL_DEPS)
+                    .build()
         }
     }
 
@@ -79,6 +80,7 @@ class AspectJTransform extends Transform {
             }
         }
         //clean
+        SdkConstants.GRADLE_PLUGIN_LATEST_VERSION
         if (!isIncremental()) {
             transformInvocation.outputProvider.deleteAll()
         }
@@ -133,7 +135,7 @@ class AspectJTransform extends Transform {
 
         //create aspect destination dir
         File aspectDirFile = transformInvocation.outputProvider.getContentLocation('aspect',
-                getOutputTypes(), getScopes(), Format.DIRECTORY)
+                outputTypes, scopes, Format.DIRECTORY)
         println("aspectDirFile=${aspectDirFile.absolutePath}")
         if (aspectDirFile.exists()) {
             println("delete aspect directory: ${aspectDirFile.absolutePath}")
@@ -171,8 +173,8 @@ class AspectJTransform extends Transform {
         ajcCompile.compile()
 
         if (aspectDirFile.listFiles().length > 0) {
-            Set<? super QualifiedContent.Scope> scopes = ImmutableSet.of(QualifiedContent.Scope.SUB_PROJECTS)
-            File jarFile = transformInvocation.outputProvider.getContentLocation('aspectJar', getOutputTypes(), scopes, Format.JAR)
+            File jarFile = transformInvocation.outputProvider.getContentLocation('aspectJar',
+                    outputTypes, scopes, Format.JAR)
             println("merge aspect jar to path -> ${jarFile.absolutePath}")
             FileUtils.mkdirs(jarFile.parentFile)
             FileUtils.deleteIfExists(jarFile)
