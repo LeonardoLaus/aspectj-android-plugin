@@ -7,7 +7,7 @@ buildscript {
         jcenter()
         mavenCentral()
         maven {
-            url uri('F:/Android/repos')
+            url uri(LOCAL_REPOS)
         }
     }
     dependencies {
@@ -26,7 +26,7 @@ allprojects {
         jcenter()
         mavenCentral()
         maven {
-            url uri('F:/Android/repos')
+            url uri(LOCAL_REPOS)
         }
     }
 }

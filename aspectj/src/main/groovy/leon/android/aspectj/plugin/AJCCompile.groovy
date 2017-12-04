@@ -54,7 +54,7 @@ class AJCCompile {
 
         MessageHandler handler = new MessageHandler(true)
         Main main = new Main()
-        main.run(args, handler)
+        main.run(args as String[], handler)
         for (IMessage message : handler.getMessages(null, true)) {
             switch (message.getKind()) {
                 case IMessage.ABORT:

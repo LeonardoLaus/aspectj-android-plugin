@@ -1,12 +1,18 @@
 package leon.android.aspectj.plugin
 
+import com.android.SdkConstants
 import com.android.build.api.transform.*
 import com.android.build.gradle.internal.pipeline.TransformManager
+import com.android.builder.packaging.JarMerger
+import com.android.builder.packaging.ZipAbortException
+import com.android.builder.packaging.ZipEntryFilter
 import com.android.utils.FileUtils
 import com.google.common.collect.ImmutableSet
 import org.apache.commons.codec.digest.DigestUtils
 import org.gradle.api.Project
 import org.gradle.api.tasks.compile.JavaCompile
+
+import javax.annotation.Nonnull
 
 /**
  * Created by roothost on 2017/12/1.
@@ -41,29 +47,20 @@ class AspectJTransform extends Transform {
         return TransformManager.CONTENT_CLASS
     }
 
-//    PROJECT(1),
-//    SUB_PROJECTS(4),
-//    EXTERNAL_LIBRARIES(16),
-//    TESTED_CODE(32),
-//    PROVIDED_ONLY(64),
-//    /** @deprecated */
-//    @Deprecated
-//    PROJECT_LOCAL_DEPS(2),
-//    /** @deprecated */
-//    @Deprecated
-//    SUB_PROJECTS_LOCAL_DEPS(8);
     @Override
     Set<? super QualifiedContent.Scope> getScopes() {
         def name = QualifiedContent.Scope.PROJECT_LOCAL_DEPS.name()
         def deprecated = QualifiedContent.Scope.class.getField(name).isAnnotationPresent(Deprecated.class)
         println("PROJECT_LOCAL_DEPS is deprecated?(${deprecated})")
-        if (deprecated)
+        if (deprecated) {
             return TransformManager.SCOPE_FULL_PROJECT
-        return ImmutableSet.<QualifiedContent.Scope> builder()
-                .addAll(TransformManager.SCOPE_FULL_PROJECT)
-                .add(QualifiedContent.Scope.PROJECT_LOCAL_DEPS)
-                .add(QualifiedContent.Scope.SUB_PROJECTS_LOCAL_DEPS)
-                .build()
+        } else {
+            return ImmutableSet.<QualifiedContent.Scope> of(QualifiedContent.Scope.PROJECT
+                    , QualifiedContent.Scope.PROJECT_LOCAL_DEPS
+                    , QualifiedContent.Scope.EXTERNAL_LIBRARIES
+                    , QualifiedContent.Scope.SUB_PROJECTS
+                    , QualifiedContent.Scope.SUB_PROJECTS_LOCAL_DEPS)
+        }
     }
 
     @Override
@@ -80,6 +77,10 @@ class AspectJTransform extends Transform {
                 println('any loop transformInput.jarInputs ' + jarInput.file.absolutePath)
                 jarInput.file.absolutePath.contains(ASPECTJRT)
             }
+        }
+        //clean
+        if (!isIncremental()) {
+            transformInvocation.outputProvider.deleteAll()
         }
         if (aspectJrtAvailable) {
             println('aspect transform start.')
@@ -100,21 +101,25 @@ class AspectJTransform extends Transform {
                 }
                 //遍历Jar 一般是第三方依赖库jar文件
                 transformInput.jarInputs.each { JarInput jarInput ->
-                    // 重命名输出文件（同目录copyFile会冲突）
-                    def jarName = jarInput.name
-                    def md5Name = DigestUtils.md5Hex(jarInput.file.absolutePath)
-                    if (jarName.endsWith('.jar')) {
-                        jarName = jarName.substring(0, jarName.length() - 4)
-                    }
-                    //生成输出路径
-                    def dest = transformInvocation.outputProvider.getContentLocation(jarName + md5Name,
-                            jarInput.contentTypes, jarInput.scopes, Format.JAR)
-                    //将输入内容复制到输出
-                    FileUtils.copyFile(jarInput.file, dest)
+                    copyJar(transformInvocation.outputProvider, jarInput)
                     println("jarInput = ${jarInput.name}")
                 }
             }
         }
+    }
+
+    private void copyJar(TransformOutputProvider outputProvider, JarInput jarInput) {
+        // 重命名输出文件（同目录copyFile会冲突）
+        def jarName = jarInput.name
+        def md5Name = DigestUtils.md5Hex(jarInput.file.absolutePath)
+        if (jarName.endsWith('.jar')) {
+            jarName = jarName.substring(0, jarName.length() - 4)
+        }
+        //生成输出路径
+        def dest = outputProvider.getContentLocation(jarName + md5Name,
+                jarInput.contentTypes, jarInput.scopes, Format.JAR)
+        //将输入内容复制到输出
+        FileUtils.copyFile(jarInput.file, dest)
     }
 
     private void weaveAspectTransform(TransformInvocation transformInvocation) {
@@ -129,6 +134,7 @@ class AspectJTransform extends Transform {
         //create aspect destination dir
         File aspectDirFile = transformInvocation.outputProvider.getContentLocation('aspect',
                 getOutputTypes(), getScopes(), Format.DIRECTORY)
+        println("aspectDirFile=${aspectDirFile.absolutePath}")
         if (aspectDirFile.exists()) {
             println("delete aspect directory: ${aspectDirFile.absolutePath}")
             FileUtils.deleteDirectoryContents(aspectDirFile)
@@ -147,13 +153,55 @@ class AspectJTransform extends Transform {
                 ajcCompile.inpath.add(directoryInput.file)
             }
             //处理依赖Jar
-            input.jarInputs.each {JarInput jarInput->
-                println("deal with jar input: ${jarInput.file.absolutePath}")
+            input.jarInputs.each { JarInput jarInput ->
+                def jarPath = jarInput.file.absolutePath
                 ajcCompile.aspectpath.add(jarInput.file)
                 ajcCompile.classpath.add(jarInput.file)
-
+                if (findAny(jarPath, includeJars) && !findAny(jarPath, excludeJars)) {
+                    println("include jar: ${jarPath}")
+                    ajcCompile.inpath.add(jarInput.file)
+                } else {
+                    println("exclude jar:${jarPath}")
+                    copyJar(transformInvocation.outputProvider, jarInput)
+                }
             }
         }
+        // compile ajc
+        println('compile ajc...')
+        ajcCompile.compile()
 
+        if (aspectDirFile.listFiles().length > 0) {
+            Set<? super QualifiedContent.Scope> scopes = ImmutableSet.of(QualifiedContent.Scope.SUB_PROJECTS)
+            File jarFile = transformInvocation.outputProvider.getContentLocation('aspectJar', getOutputTypes(), scopes, Format.JAR)
+            println("merge aspect jar to path -> ${jarFile.absolutePath}")
+            FileUtils.mkdirs(jarFile.parentFile)
+            FileUtils.deleteIfExists(jarFile)
+            JarMerger jarMerger = new JarMerger(jarFile.toPath(), new ZipEntryFilter() {
+
+                @Override
+                boolean checkEntry(String archivePath) throws ZipAbortException {
+                    return archivePath.endsWith(SdkConstants.DOT_CLASS)
+                }
+            })
+            jarMerger.addDirectory(aspectDirFile.toPath())
+            jarMerger.close()
+
+        }
+        FileUtils.deleteDirectoryContents(aspectDirFile)
+    }
+
+    private boolean findAny(@Nonnull String jarPath, Collection<String> jars) {
+        if (jars == null || jars.isEmpty())
+            return false
+        return jars.any { String jar ->
+            if (jarPath.contains(jar))
+                return true
+            if (jar.contains('/')) {
+                return jarPath.contains(jar.replace('/', File.separator))
+            } else if (jar.contains('//')) {
+                return jarPath.contains(jar.replace('//', File.separator))
+            }
+            return false
+        }
     }
 }
