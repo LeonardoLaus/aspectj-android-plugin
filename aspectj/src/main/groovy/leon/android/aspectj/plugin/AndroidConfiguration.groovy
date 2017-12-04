@@ -10,7 +10,6 @@ class AndroidConfiguration {
     def final hasApp
     def final hasLib
     def final variants
-//    def final bootClassPaths
 
     AndroidConfiguration(Project project) {
         this.project = project
@@ -24,12 +23,6 @@ class AndroidConfiguration {
         } else {
             this.variants = project.android.libraryVariants
         }
-//        if (project.android.hasProperty('bootClasspath')) {
-//            this.bootClassPaths = project.android.bootclasspath
-//        } else {
-//            def plugin = project.plugins.getPlugin(hasApp ? AppPlugin : LibraryPlugin)
-//            this.bootClassPaths = plugin.runtimeJarList
-//        }
     }
     /**
      * Return boot classpath.
