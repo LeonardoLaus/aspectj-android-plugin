@@ -1,14 +1,14 @@
 package leon.android.aspectj.plugin
 
-import com.android.SdkConstants
 import com.android.build.api.transform.*
 import com.android.build.gradle.internal.pipeline.TransformManager
+import com.android.build.gradle.internal.variant.BaseVariantData
 import com.android.builder.packaging.JarMerger
-import com.android.builder.packaging.ZipAbortException
 import com.android.builder.packaging.ZipEntryFilter
 import com.android.utils.FileUtils
 import com.google.common.collect.ImmutableSet
 import org.apache.commons.codec.digest.DigestUtils
+import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.tasks.compile.JavaCompile
 
@@ -20,26 +20,29 @@ import javax.annotation.Nonnull
 
 class AspectJTransform extends Transform {
 
-    private static final ASPECTJRT = "aspectjrt"
+    private static final TRANSFORM_NAME = 'AspectJTransform'
+    private static final ASPECTJ_RUNTIME = "aspectjrt"
     private Project project
     private JavaCompile javaCompile
-    def bootclasspath
+    AndroidConfiguration configuration
 
     AspectJTransform(Project project) {
         this.project = project
-        def configuration = new AndroidConfiguration(this.project)
+        this.configuration = new AndroidConfiguration(this.project)
 
         this.project.afterEvaluate {
+            AspectJUtils.getVariantDataList(configuration.plugin).each { variant ->
+                setupVariant(variant)
+            }
             configuration.variants.all { variant ->
                 this.javaCompile = variant.hasProperty('javaCompiler') ? variant.javaCompiler : variant.javaCompile
-                this.bootclasspath = configuration.bootClasspath.join(File.pathSeparator)
             }
         }
     }
 
     @Override
     String getName() {
-        return "AspectJTransform"
+        return TRANSFORM_NAME
     }
 
     @Override
@@ -76,11 +79,10 @@ class AspectJTransform extends Transform {
         def aspectJrtAvailable = transformInvocation.inputs.any { TransformInput transformInput ->
             transformInput.jarInputs.any { JarInput jarInput ->
                 println('any loop transformInput.jarInputs ' + jarInput.file.absolutePath)
-                jarInput.file.absolutePath.contains(ASPECTJRT)
+                jarInput.file.absolutePath.contains(ASPECTJ_RUNTIME)
             }
         }
         //clean
-        SdkConstants.GRADLE_PLUGIN_LATEST_VERSION
         if (!isIncremental()) {
             transformInvocation.outputProvider.deleteAll()
         }
@@ -91,22 +93,22 @@ class AspectJTransform extends Transform {
         } else {
             println('cannot find dependencies for aspectjtr in classpath.')
             //将input对外输出 交给下一个任务处理
-            transformInvocation.inputs.each { TransformInput transformInput ->
-                //遍历源码目录
-                transformInput.directoryInputs.each { DirectoryInput directoryInput ->
-                    //获取output目录
-                    def dest = transformInvocation.outputProvider.getContentLocation(directoryInput.name,
-                            directoryInput.contentTypes, directoryInput.scopes, Format.DIRECTORY)
-                    //将input的目录复制到output指定目录
-                    FileUtils.copyDirectory(directoryInput.file, dest)
-                    println("directoryInput = ${directoryInput.name}")
-                }
-                //遍历Jar 一般是第三方依赖库jar文件
-                transformInput.jarInputs.each { JarInput jarInput ->
-                    copyJar(transformInvocation.outputProvider, jarInput)
-                    println("jarInput = ${jarInput.name}")
-                }
-            }
+//            transformInvocation.inputs.each { TransformInput transformInput ->
+//                //遍历源码目录
+//                transformInput.directoryInputs.each { DirectoryInput directoryInput ->
+//                    //获取output目录
+//                    def dest = transformInvocation.outputProvider.getContentLocation(directoryInput.name,
+//                            directoryInput.contentTypes, directoryInput.scopes, Format.DIRECTORY)
+//                    //将input的目录复制到output指定目录
+//                    FileUtils.copyDirectory(directoryInput.file, dest)
+//                    println("directoryInput = ${directoryInput.name}")
+//                }
+//                //遍历Jar 一般是第三方依赖库jar文件
+//                transformInput.jarInputs.each { JarInput jarInput ->
+//                    copyJar(transformInvocation.outputProvider, jarInput)
+//                    println("jarInput = ${jarInput.name}")
+//                }
+//            }
         }
     }
 
@@ -131,7 +133,7 @@ class AspectJTransform extends Transform {
             ajcCompile.sourceCompatibility = javaCompile.sourceCompatibility
             ajcCompile.targetCompatibility = javaCompile.targetCompatibility
         }
-        ajcCompile.bootclasspath = this.bootclasspath
+        ajcCompile.bootclasspath = this.configuration.bootClasspath.join(File.pathSeparator)
 
         //create aspect destination dir
         File aspectDirFile = transformInvocation.outputProvider.getContentLocation('aspect',
@@ -142,6 +144,7 @@ class AspectJTransform extends Transform {
             FileUtils.deleteDirectoryContents(aspectDirFile)
         }
         FileUtils.mkdirs(aspectDirFile)
+
         ajcCompile.destinationDir = aspectDirFile.absolutePath
         ajcCompile.ajcArgs = project.aspectjOptions.ajcArgs
         def includeJars = project.aspectjOptions.includeJars
@@ -171,28 +174,11 @@ class AspectJTransform extends Transform {
         // compile ajc
         println('compile ajc...')
         ajcCompile.compile()
-
-        if (aspectDirFile.listFiles().length > 0) {
-            File jarFile = transformInvocation.outputProvider.getContentLocation('aspectJar',
-                    outputTypes, scopes, Format.JAR)
-            println("merge aspect jar to path -> ${jarFile.absolutePath}")
-            FileUtils.mkdirs(jarFile.parentFile)
-            FileUtils.deleteIfExists(jarFile)
-            JarMerger jarMerger = new JarMerger(jarFile.toPath(), new ZipEntryFilter() {
-
-                @Override
-                boolean checkEntry(String archivePath) throws ZipAbortException {
-                    return archivePath.endsWith(SdkConstants.DOT_CLASS)
-                }
-            })
-            jarMerger.addDirectory(aspectDirFile.toPath())
-            jarMerger.close()
-
-        }
-        FileUtils.deleteDirectoryContents(aspectDirFile)
+        //merge jar
+        mergeJar(transformInvocation.outputProvider, aspectDirFile)
     }
 
-    private boolean findAny(@Nonnull String jarPath, Collection<String> jars) {
+    def findAny(@Nonnull String jarPath, Collection<String> jars) {
         if (jars == null || jars.isEmpty())
             return false
         return jars.any { String jar ->
@@ -204,6 +190,29 @@ class AspectJTransform extends Transform {
                 return jarPath.contains(jar.replace('//', File.separator))
             }
             return false
+        }
+    }
+
+    def mergeJar(TransformOutputProvider outputProvider, File aspectDirFile) {
+        if (aspectDirFile.listFiles().size() > 0) {
+            File jarFile = outputProvider.getContentLocation('aspectJar',
+                    outputTypes, scopes, Format.JAR)
+            println("merge aspect jar to path -> ${jarFile.absolutePath}")
+            FileUtils.mkdirs(jarFile.parentFile)
+            FileUtils.deleteIfExists(jarFile)
+            JarMerger jarMerger = new JarMerger(jarFile.toPath(), ZipEntryFilter.CLASSES_ONLY)
+            jarMerger.addDirectory(aspectDirFile.toPath())
+            jarMerger.close()
+
+        }
+        FileUtils.deleteDirectoryContents(aspectDirFile)
+    }
+
+    private static <T extends BaseVariantData> void setupVariant(T variantData) {
+        def isInstantRunMode = variantData.scope.instantRunBuildContext.isInInstantRunMode()
+        println("isInstantRunMode=${isInstantRunMode}")
+        if (isInstantRunMode) {
+            throw new GradleException('InstantRun mode is not support when weave.please disable InstantRun')
         }
     }
 }

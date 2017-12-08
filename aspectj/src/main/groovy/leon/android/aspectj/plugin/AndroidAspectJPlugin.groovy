@@ -2,6 +2,8 @@ package leon.android.aspectj.plugin
 
 import com.android.build.gradle.AppExtension
 import com.android.build.gradle.AppPlugin
+import com.android.build.gradle.LibraryExtension
+import com.android.build.gradle.LibraryPlugin
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
@@ -9,18 +11,27 @@ class AndroidAspectJPlugin implements Plugin<Project> {
 
     @Override
     void apply(Project project) {
-        project.dependencies {
-            implementation 'org.aspectj:aspectjrt:1.8.10'
-        }
         //extension
-        project.extensions.create('aspectjOptions', AspectJExtension)
+        def aspectjOptions = project.extensions.create('aspectjOptions', AspectJExtension)
+
+        // dependencies aspectjrt
+        project.repositories.mavenCentral()
+        project.afterEvaluate {
+            project.dependencies.add('implementation', "org.aspectj:aspectjrt:${aspectjOptions.ajrt}")
+            println("apsectjOptions ajrt=${aspectjOptions.ajrt}")
+        }
+        //构建时间
+        project.gradle.addListener(new BuildTimeTrace())
+
         def isApplication = project.plugins.withType(AppPlugin)
+        def isLibrary = project.plugins.withType(LibraryPlugin)
         if (isApplication) {
-            //构建时间
-            project.gradle.addListener(new BuildTimeTrace())
             //Transform Api
             AppExtension android = project.extensions.getByType(AppExtension)
             android.registerTransform(new AspectJTransform(project))
+        } else if (isLibrary) {
+            LibraryExtension library = project.extensions.getByType(LibraryExtension)
+            library.registerTransform(new LibraryTransform(project))
         }
     }
 }

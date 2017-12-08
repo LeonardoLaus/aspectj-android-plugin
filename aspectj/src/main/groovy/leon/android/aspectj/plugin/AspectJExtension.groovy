@@ -1,6 +1,7 @@
 package leon.android.aspectj.plugin
 
 class AspectJExtension {
+    def ajrt = '1.8.12'
     def includeJars = []
     def excludeJars = []
     def ajcArgs = []

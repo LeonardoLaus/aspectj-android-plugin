@@ -10,11 +10,11 @@ repositories {
 
 dependencies {
     //gradle sdk
-    implementation gradleApi()
+    compileOnly gradleApi()
     //groovy sdk
-    implementation localGroovy()
-    implementation 'com.android.tools.build:gradle:3.0.1'
-    implementation 'org.aspectj:aspectjtools:1.8.10'
+    compileOnly localGroovy()
+    compileOnly 'com.android.tools.build:gradle:3.0.1'
+    implementation 'org.aspectj:aspectjtools:1.8.12'
 }
 
 group = 'leon.android.plugins'

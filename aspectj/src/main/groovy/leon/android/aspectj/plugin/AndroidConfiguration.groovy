@@ -7,20 +7,23 @@ import org.gradle.api.Project
 
 class AndroidConfiguration {
     def final project
-    def final hasApp
-    def final hasLib
+    def final isAppPlugin
+    def final isLibraryPlugin
     def final variants
+    def final plugin
 
     AndroidConfiguration(Project project) {
         this.project = project
-        this.hasApp = project.plugins.withType(AppPlugin)
-        this.hasLib = project.plugins.withType(LibraryPlugin)
-        if (!hasApp && !hasLib) {
+        this.isAppPlugin = project.plugins.withType(AppPlugin)
+        this.isLibraryPlugin = project.plugins.withType(LibraryPlugin)
+        if (!isAppPlugin && !isLibraryPlugin) {
             throw new GradleException("'android' or 'library' plugin required.")
         }
-        if (hasApp) {
+        if (isAppPlugin) {
+            this.plugin = project.plugins.getPlugin(AppPlugin)
             this.variants = project.android.applicationVariants
         } else {
+            this.plugin = project.plugins.getPlugin(LibraryPlugin)
             this.variants = project.android.libraryVariants
         }
     }
@@ -29,11 +32,14 @@ class AndroidConfiguration {
      * @return Collection of classes.
      */
     List<File> getBootClasspath() {
-        if (project.android.hasProperty('bootClasspath')) {
-            return project.android.bootClasspath
+        if (this.project.android.hasProperty('bootClasspath')) {
+            return this.project.android.bootClasspath
         } else {
-            def plugin = project.plugins.getPlugin(hasApp ? AppPlugin : LibraryPlugin)
-            return plugin.runtimeJarList
+            return this.plugin.runtimeJarList
         }
+    }
+
+    AspectJExtension aspectjOptions() {
+        return this.project.extensions.getByType(AspectJExtension)
     }
 }

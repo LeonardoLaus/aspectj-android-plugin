@@ -19,11 +19,12 @@ android {
     }
 }
 
-aspectjOptions {
-    includeJars 'android.arch.lifecycle'
-    ajcArgs '-nowarn'
-    excludeJars 'appcompat'
-}
+//aspectjOptions {
+//    ajrt '1.8.12'
+////    includeJars 'android.arch.lifecycle'
+////    ajcArgs '-nowarn'
+////    excludeJars 'appcompat'
+//}
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
