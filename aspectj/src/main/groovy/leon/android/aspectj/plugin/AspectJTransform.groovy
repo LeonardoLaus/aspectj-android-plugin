@@ -55,10 +55,8 @@ class AspectJTransform extends Transform {
         def name = QualifiedContent.Scope.PROJECT_LOCAL_DEPS.name()
         def deprecated = QualifiedContent.Scope.class.getField(name).isAnnotationPresent(Deprecated.class)
         if (deprecated) {
-            println('getScopes >>> TransformManager.SCOPE_FULL_PROJECT')
             return TransformManager.SCOPE_FULL_PROJECT
         } else {
-            println('getScopes >>> TransformManager.SCOPE_FULL_PROJECT append PROJECT_LOCAL_DEPES SUB_PROJECTS_LOCAL_DEPS')
             return ImmutableSet.builder()
                     .addAll(TransformManager.SCOPE_FULL_PROJECT)
                     .add(QualifiedContent.Scope.PROJECT_LOCAL_DEPS)
@@ -78,7 +76,6 @@ class AspectJTransform extends Transform {
         //是否依赖aspectjtr
         def aspectJrtAvailable = transformInvocation.inputs.any { TransformInput transformInput ->
             transformInput.jarInputs.any { JarInput jarInput ->
-                println('any loop transformInput.jarInputs ' + jarInput.file.absolutePath)
                 jarInput.file.absolutePath.contains(ASPECTJ_RUNTIME)
             }
         }
@@ -92,7 +89,7 @@ class AspectJTransform extends Transform {
             println('aspect transform end.')
         } else {
             println('cannot find dependencies for aspectjtr in classpath.')
-            //将input对外输出 交给下一个任务处理
+//            //将input对外输出 交给下一个任务处理
 //            transformInvocation.inputs.each { TransformInput transformInput ->
 //                //遍历源码目录
 //                transformInput.directoryInputs.each { DirectoryInput directoryInput ->
@@ -115,12 +112,12 @@ class AspectJTransform extends Transform {
     private void copyJar(TransformOutputProvider outputProvider, JarInput jarInput) {
         // 重命名输出文件（同目录copyFile会冲突）
         def jarName = jarInput.name
-        def md5Name = DigestUtils.md5Hex(jarInput.file.absolutePath)
+//        def md5Name = DigestUtils.md5Hex(jarInput.file.absolutePath)
         if (jarName.endsWith('.jar')) {
             jarName = jarName.substring(0, jarName.length() - 4)
         }
         //生成输出路径
-        def dest = outputProvider.getContentLocation(jarName + md5Name,
+        def dest = outputProvider.getContentLocation(jarName/* + md5Name*/,
                 jarInput.contentTypes, jarInput.scopes, Format.JAR)
         //将输入内容复制到输出
         FileUtils.copyFile(jarInput.file, dest)
@@ -182,14 +179,7 @@ class AspectJTransform extends Transform {
         if (jars == null || jars.isEmpty())
             return false
         return jars.any { String jar ->
-            if (jarPath.contains(jar))
-                return true
-            if (jar.contains('/')) {
-                return jarPath.contains(jar.replace('/', File.separator))
-            } else if (jar.contains('//')) {
-                return jarPath.contains(jar.replace('//', File.separator))
-            }
-            return false
+            return jarPath.contains(jar)
         }
     }
 
@@ -203,7 +193,6 @@ class AspectJTransform extends Transform {
             JarMerger jarMerger = new JarMerger(jarFile.toPath(), ZipEntryFilter.CLASSES_ONLY)
             jarMerger.addDirectory(aspectDirFile.toPath())
             jarMerger.close()
-
         }
         FileUtils.deleteDirectoryContents(aspectDirFile)
     }
@@ -212,7 +201,7 @@ class AspectJTransform extends Transform {
         def isInstantRunMode = variantData.scope.instantRunBuildContext.isInInstantRunMode()
         println("isInstantRunMode=${isInstantRunMode}")
         if (isInstantRunMode) {
-            throw new GradleException('InstantRun mode is not support when weave.please disable InstantRun')
+            throw new GradleException('InstantRun mode is not support when weave.Just disable InstantRun')
         }
     }
 }

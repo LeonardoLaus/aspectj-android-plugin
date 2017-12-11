@@ -17,8 +17,13 @@ class AndroidAspectJPlugin implements Plugin<Project> {
         // dependencies aspectjrt
         project.repositories.mavenCentral()
         project.afterEvaluate {
-            project.dependencies.add('implementation', "org.aspectj:aspectjrt:${aspectjOptions.ajrt}")
-            println("apsectjOptions ajrt=${aspectjOptions.ajrt}")
+            def hasAspectjRT = AspectJUtils.isAspectjRTContains(project)
+            if (!hasAspectjRT) {
+                project.dependencies.add('implementation', "org.aspectj:aspectjrt:${aspectjOptions.ajrt}")
+                println("apsectjOptions ajrt=${aspectjOptions.ajrt}")
+            } else {
+                println('already dependency org.aspectj:aspectjrt')
+            }
         }
         //构建时间
         project.gradle.addListener(new BuildTimeTrace())
