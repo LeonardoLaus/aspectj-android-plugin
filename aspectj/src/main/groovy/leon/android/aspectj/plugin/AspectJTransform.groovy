@@ -7,7 +7,6 @@ import com.android.builder.packaging.JarMerger
 import com.android.builder.packaging.ZipEntryFilter
 import com.android.utils.FileUtils
 import com.google.common.collect.ImmutableSet
-import org.apache.commons.codec.digest.DigestUtils
 import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.tasks.compile.JavaCompile
@@ -23,7 +22,7 @@ class AspectJTransform extends Transform {
     private static final TRANSFORM_NAME = 'AspectJTransform'
     private static final ASPECTJ_RUNTIME = "aspectjrt"
     private Project project
-    private JavaCompile javaCompile
+    JavaCompile javaCompile
     AndroidConfiguration configuration
 
     AspectJTransform(Project project) {
@@ -31,8 +30,8 @@ class AspectJTransform extends Transform {
         this.configuration = new AndroidConfiguration(this.project)
 
         this.project.afterEvaluate {
-            AspectJUtils.getVariantDataList(configuration.plugin).each { variant ->
-                setupVariant(variant)
+            AspectJUtils.getVariantDataList(configuration.plugin).each { variantData ->
+                setupVariant(variantData)
             }
             configuration.variants.all { variant ->
                 this.javaCompile = variant.hasProperty('javaCompiler') ? variant.javaCompiler : variant.javaCompile
@@ -197,7 +196,7 @@ class AspectJTransform extends Transform {
         FileUtils.deleteDirectoryContents(aspectDirFile)
     }
 
-    private static <T extends BaseVariantData> void setupVariant(T variantData) {
+    static <T extends BaseVariantData> void setupVariant(T variantData) {
         def isInstantRunMode = variantData.scope.instantRunBuildContext.isInInstantRunMode()
         println("isInstantRunMode=${isInstantRunMode}")
         if (isInstantRunMode) {
