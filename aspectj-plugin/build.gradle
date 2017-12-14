@@ -1,5 +1,4 @@
 apply plugin: 'groovy'
-apply plugin: 'maven'
 
 repositories {
     google()
@@ -17,12 +16,9 @@ dependencies {
     implementation 'org.aspectj:aspectjtools:1.8.12'
 }
 
-group = 'leon.android.plugins'
-version = '1.0.0'
-uploadArchives {
-    repositories {
-        mavenDeployer {
-            repository(url: uri(LOCAL_REPOS))
-        }
-    }
-}
+group = config.versions.group
+version = config.versions.version
+
+apply from: '../maven.gradle'
+apply from: '../bintray.gradle'
+

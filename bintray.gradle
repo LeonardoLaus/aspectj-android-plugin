@@ -1,0 +1,70 @@
+apply plugin: 'com.jfrog.bintray'
+def isJava = project.plugins.hasPlugin(JavaPlugin)
+
+task sourcesJar(type: Jar) {
+    if (isJava) {
+        from sourceSets.main.java.srcDirs
+    } else {
+        from android.sourceSets.main.java.srcDirs
+    }
+    classifier = 'sources'
+}
+if (!isJava) {
+    task javadoc(type: Javadoc) {
+        source = android.sourceSets.main.java.srcDirs
+        classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+    }
+}
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    from javadoc.destinationDir
+    classifier = 'javadoc'
+}
+
+
+artifacts {
+    archives javadocJar
+    archives sourcesJar
+}
+
+tasks.withType(Javadoc) {
+    options {
+        encoding 'UTF-8'
+        charSet 'UTF-8'
+        links "http://docs.oracle.com/javase/7/docs/api"
+        if (!isJava) {
+            linksOffline "https://developer.android.com/reference", "${android.sdkDirectory}/docs/reference"
+        }
+    }
+}
+
+bintray {
+    user = config.bintray.user
+    key = config.bintray.apikey
+    configurations = ['archives']
+
+    override = true //[Default: false] Whether to override version artifacts already published
+
+    pkg {
+        repo = 'Maven'
+        name = project.name
+        websiteUrl = config.versions.siteUrl
+        vcsUrl = config.versions.gitUrl
+        issueTrackerUrl = config.versions.issueTrackerUrl
+        licenses = ["Apache-2.0"]
+        publicDownloadNumbers = true
+        githubRepo = 'bintray/gradle-bintray-plugin' //Optional Github repository
+        githubReleaseNotesFile = 'README.md' //Optional Github readme file
+
+        dryRun = false //[Default: false] Whether to run this as dry-run, without deploying
+        publish = true //[Default: false] Whether version should be auto published after an upload
+
+        version {
+            name = config.versions.version
+            desc = "release ${this.version}"
+            released = new Date()
+            vcsTag = config.versions.version
+        }
+    }
+}
+
+println("project.name=${project.name}")
