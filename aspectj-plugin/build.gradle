@@ -1,5 +1,15 @@
 apply plugin: 'groovy'
 
+//buildscript {
+//    repositories {
+//        jcenter()
+//    }
+//    dependencies {
+//        //自动化jcenter打包插件
+//        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.3'
+//    }
+//}
+
 repositories {
     google()
     mavenLocal()
@@ -18,6 +28,9 @@ dependencies {
 
 group = config.versions.group
 version = config.versions.version
+ext {
+    artifactId = 'aspect-plugin'
+}
 
 apply from: '../maven.gradle'
 apply from: '../bintray.gradle'
