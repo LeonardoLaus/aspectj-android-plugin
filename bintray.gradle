@@ -4,6 +4,7 @@ def isJava = project.plugins.hasPlugin(JavaPlugin)
 def artifactId = getArtifactId()
 
 task sourcesJar(type: Jar) {
+    archivesBaseName = artifactId
     if (isJava) {
         from sourceSets.main.java.srcDirs
     } else {

@@ -29,6 +29,8 @@ config.developer = developer
 def bintray = [:]
 bintray.user = getLocalProperties().getProperty('bintray.user')
 bintray.apikey = getLocalProperties().getProperty('bintray.apikey')
+assert bintray.user != null
+assert bintray.apikey != null
 config.bintray = bintray
 
 ext.config = config

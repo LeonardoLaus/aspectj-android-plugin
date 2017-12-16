@@ -29,7 +29,7 @@ dependencies {
 group = config.versions.group
 version = config.versions.version
 ext {
-    artifactId = 'aspect-plugin'
+    artifactId = 'aspectj-plugin'
 }
 
 apply from: '../maven.gradle'
