@@ -36,6 +36,7 @@
 `-source [1.3|1.4|1.5]`：提供与指定版本的源兼容性。(1.3, 1.4, or 1.5 - default is 1.4)。
 `-nowarn`：不生成任何警告，同`-warn:none`。不包含由`declare warning`或`Xlint`生成的信息。
 `warn:items`：生成指定警告信息。
+
 |item|description|
 |:--:|:--:|
 |constructorName|method with constructor name|
@@ -52,11 +53,13 @@
 `-noImportError`：不提示未导入包错误。
 `-proceedOnError`：遇到错误时继续编译
 `-g:[lines,vars,source]`：调试信息
+
 |指令|说明|
 |:--:|:--:|
 |-g|all debug info ('-g:lines,vars,source')|
 |-g:none|no debug info|
 |-g:{items}|debug info for any/all of [lines, vars, source], e.g.,-g:lines,source|
+
 `-preserveAllLocals`：
 `-referenceInfo`：
 `-encoding format`：
@@ -66,12 +69,21 @@
 `-progress`：
 `-time`：
 `-noExit`：Do not call System.exit(n) at end of compilation (n=0 if no error)
+
 `-repeat N`：Repeat compilation process N times (typically to do performance analysis).
+
 `-XterminateAfterCompilation`：Causes compiler to terminate before weaving
+
 `-XaddSerialVersionUID`：Causes the compiler to calculate and add the SerialVersionUID field to any type implementing Serializable that is affected by an aspect. The field is calculated based on the class before weaving has taken place.
+
 `-Xreweavable[:compress]`：(Experimental - deprecated as now default)Runs weaver in reweavable mode which causes it to create woven classes that can be rewoven, subject to the restriction that on attempting a reweave all the types that advised the woven type must be accessible.
+
 `-XnoInline`：(Experimental)do not inline around advice
+
 `-XincrementalFile file`：(Experimental)This works like incremental mode, but using a file rather than standard input to control the compiler. It will recompile each time file is changed and and halt when file is deleted.
+
 `-XserializableAspects`：(Experimental)Normally it is an error to declare aspects Serializable. This option removes that restriction.
+
 `-XnotReweavable`：(Experimental)Create class files that can't be subsequently rewoven by AspectJ.
+
 `-Xajruntimelevel:1.2, ajruntimelevel:1.5`：(Experimental)Allows code to be generated that targets a 1.2 or a 1.5 level AspectJ runtime (default 1.5)
